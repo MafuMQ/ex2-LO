@@ -12,8 +12,8 @@ class Config:
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'your_secret_key'
     
     # File Upload Settings
-    UPLOAD_FOLDER = os.path.join(BASE_DIR, 'uploads')
-    EXPORT_FOLDER = os.path.join(BASE_DIR, 'exports')
+    UPLOAD_FOLDER = '/tmp/uploads'
+    EXPORT_FOLDER = '/tmp/exports'
     MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max file size
     
     # Optimization Settings
