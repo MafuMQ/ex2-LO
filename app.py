@@ -60,7 +60,7 @@ def handle_file_operation(operation: str, filepath: str, variables: Optional[lis
                     var.validate()
                     variables_list.append(var)
     except Exception as e:
-        raise IOError(f"Error {operation}ing variables: {str(e)}")
+        raise IOError(f"Error {operation}ing products: {str(e)}")
 
 def parse_variable_form() -> Tuple[Dict[str, Any], bool]:
     """Parse and validate variable form data."""
@@ -75,7 +75,7 @@ def parse_variable_form() -> Tuple[Dict[str, Any], bool]:
         }
         return data, True
     except ValueError as e:
-        flash(f"Invalid input: {str(e)}", "error")
+        flash(f"Invalid product input: {str(e)}", "error")
         return {}, False
 
 # Routes
@@ -102,13 +102,13 @@ def index():
             if valid:
                 try:
                     create_integer_variable(**data)
-                    flash("Variable added successfully!", "success")
+                    flash("Product added successfully!", "success")
                 except OptimizationError as e:
                     flash(str(e), "error")
         
         elif "optimize" in request.form:
             if not variables_list:
-                flash("No variables to optimize. Add variables first.", "error")
+                flash("No products to optimize. Add products first.", "error")
             else:
                 try:
                     max_profit, result = optimize(variables_list, budget)
@@ -126,10 +126,10 @@ def index():
 def export_variables():
     """Export variables to a JSON file in the exports folder."""
     try:
-        filename = safe_filename(request.form.get("filename", "variables.json"))
+        filename = safe_filename(request.form.get("filename", "products.json"))
         filepath = os.path.join(app.config['EXPORT_FOLDER'], filename)
         handle_file_operation('save', filepath)
-        flash(f"Variables exported successfully!", "success")
+        flash(f"Products exported successfully!", "success")
     except Exception as e:
         flash(f"Export failed: {str(e)}", "error")
     return redirect(url_for("index"))
@@ -151,7 +151,7 @@ def import_variables():
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
         handle_file_operation('load', filepath)
-        flash("Variables imported successfully!", "success")
+        flash("Products imported successfully!", "success")
     except Exception as e:
         flash(f"Import failed: {str(e)}", "error")
     
@@ -161,7 +161,7 @@ def import_variables():
 def download_variables():
     """Download variables as a JSON file."""
     try:
-        filename = safe_filename(request.form.get("filename", "variables.json").strip())
+        filename = safe_filename(request.form.get("filename", "products.json").strip())
         filepath = os.path.join(app.config['EXPORT_FOLDER'], filename)
         handle_file_operation('save', filepath)
         return send_file(filepath, as_attachment=True, download_name=filename)
@@ -174,11 +174,11 @@ def delete_variable(name):
     """Delete a variable by its name."""
     global variables_list
     try:
-        # Find and remove the variable with the given name
+        # Find and remove the product with the given name
         variables_list = [var for var in variables_list if var.name != name]
-        flash(f"Variable '{name}' deleted successfully!", "success")
+        flash(f"Product '{name}' deleted successfully!", "success")
     except Exception as e:
-        flash(f"Error deleting variable: {str(e)}", "error")
+        flash(f"Error deleting product: {str(e)}", "error")
     
     return redirect(url_for("index"))
 
@@ -189,12 +189,12 @@ def update_variable():
     try:
         old_name = request.form.get('old_name')
         if not old_name:
-            return {'status': 'error', 'message': 'Original variable name is required'}, 400
+            return {'status': 'error', 'message': 'Original product name is required'}, 400
 
-        # Find the variable we're updating
+        # Find the product we're updating
         old_var = next((var for var in variables_list if var.name == old_name), None)
         if not old_var:
-            return {'status': 'error', 'message': f'Variable {old_name} not found'}, 404
+            return {'status': 'error', 'message': f'Product {old_name} not found'}, 404
 
         data, valid = parse_variable_form()
         if not valid:
@@ -202,23 +202,23 @@ def update_variable():
 
         # If we're not changing the name, or if the new name is available
         if data['name'] == old_name or not any(var.name == data['name'] for var in variables_list if var.name != old_name):
-            # Create new variable instance to validate before removing old one
+            # Create new product instance to validate before removing old one
             new_var = IntegerVariable(**data)
             new_var.validate()
             
-            # Remove the old variable first
+            # Remove the old product first
             variables_list = [var for var in variables_list if var.name != old_name]
-            # Add the new variable
+            # Add the new product
             variables_list.append(new_var)
-            flash("Variable updated successfully!", "success")
+            flash("Product updated successfully!", "success")
             return {'status': 'success'}, 200
         else:
-            return {'status': 'error', 'message': f'A variable named {data["name"]} already exists'}, 400
+            return {'status': 'error', 'message': f'A product named {data["name"]} already exists'}, 400
         
     except ValueError as e:
         return {'status': 'error', 'message': f'Invalid value: {str(e)}'}, 400
     except Exception as e:
-        flash(f"Error updating variable: {str(e)}", "error")
+        flash(f"Error updating product: {str(e)}", "error")
         return {'status': 'error', 'message': str(e)}, 500
 
 def run_app(port: int = 5000, debug: bool = True):

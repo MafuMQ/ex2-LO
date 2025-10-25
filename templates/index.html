@@ -24,61 +24,56 @@
         <div id="addVariableModal" class="modal">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h2 class="modal-title">Add Variable</h2>
+                    <h2 class="modal-title">Add Product</h2>
                     <span class="close">&times;</span>
                 </div>
                 <form method="POST" class="form-group">
                     <div class="modal-body">
                         <div>
-                            <label for="name">Variable Name:</label>
+                            <label for="name">Product Name:</label>
                             <input type="text" class="form-control" id="name" name="name" required>
                         </div>
-
                         <div>
-                            <label for="lowerBound">Lower Bound:</label>
+                            <label for="lowerBound">Min Stock:</label>
                             <input type="number" class="form-control" id="lowerBound" name="lowerBound" value="0">
                         </div>
-
                         <div>
-                            <label for="upperBound">Upper Bound:</label>
+                            <label for="upperBound">Max Stock:</label>
                             <input type="number" class="form-control" id="upperBound" name="upperBound">
                         </div>
-
                         <div>
-                            <label for="profit">Profit per Unit:</label>
+                            <label for="profit">Unit Margin:</label>
                             <input type="number" class="form-control" id="profit" name="profit" step="0.01" required>
                         </div>
-
                         <div class="checkbox-group">
-                            <label for="integer">Is Integer?</label>
+                            <label for="integer">Whole Units Only?</label>
                             <input type="checkbox" id="integer" name="integer" checked>
                         </div>
-
                         <div>
-                            <label for="multiplier">Multiplier:</label>
+                            <label for="multiplier">Unit Cost:</label> <!-- this value represents the cost to acquire or produce one unit -->
                             <input type="number" class="form-control" id="multiplier" name="multiplier" value="1" required>
                         </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-                        <button type="submit" name="add_variable" class="btn btn-primary">Add Variable</button>
+                        <button type="submit" name="add_variable" class="btn btn-primary">Add Product</button>
                     </div>
                 </form>
             </div>
-        </div><!-- Current Variables Section -->
+        </div><!-- Current Products Section -->
         <section class="section card">
             <div class="section-header">
-                <h2 class="card-title">Current Variables</h2>
+                <h2 class="card-title">Current Products</h2>
                 <div class="file-controls">
-                    <input type="text" class="form-control filename-input" id="filename" value="variables.json" required
+                    <input type="text" class="form-control filename-input" id="filename" value="products.json" required
                            oninput="updateFileName(this.value)" aria-label="File name for export or download">
                     <div class="button-group">
                         <form method="post" action="/export" class="inline-form">
-                            <input type="hidden" id="export-filename" name="filename" value="variables.json">
+                            <input type="hidden" id="export-filename" name="filename" value="products.json">
                             <button type="submit" class="btn btn-primary btn-sm">Export</button>
                         </form>
                         <form method="POST" action="/download" class="inline-form">
-                            <input type="hidden" id="download-filename" name="filename" value="variables.json">
+                            <input type="hidden" id="download-filename" name="filename" value="products.json">
                             <button type="submit" class="btn btn-primary btn-sm">Download</button>
                         </form>
                         <form method="post" action="/import" enctype="multipart/form-data" class="inline-form import-form">
@@ -94,12 +89,12 @@
             <div class="table-responsive">
                 <table class="table">                    <thead>
                         <tr>
-                            <th>Name</th>
-                            <th>Lower Bound</th>
-                            <th>Upper Bound</th>
-                            <th>Profit</th>
-                            <th>Integer</th>
-                            <th>Multiplier</th>
+                            <th>Product Name</th>
+                            <th>Min Stock</th>
+                            <th>Max Stock</th>
+                            <th>Unit Margin</th>
+                            <th>Whole Units Only?</th>
+                            <th>Unit Cost</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -114,19 +109,12 @@
                             <td>{{ var.multiplier }}</td>                            <td class="table-actions-cell">
                                 <div class="button-group">
                                     <button type="button" class="btn btn-primary btn-sm"
-                                            onclick='editVariable({{ {
-                                            "name": var.name,
-                                            "lowerBound": var.lowerBound,
-                                            "upperBound": var.upperBound,
-                                            "profit": var.profit,
-                                            "integer": var.integer,
-                                            "multiplier": var.multiplier
-                                            } | tojson | safe }})'>
+                                            onclick='editVariable("{{ var | tojson | safe }}")'>
                                         Edit
                                     </button>
                                     <form method="POST" action="{{ url_for('delete_variable', name=var.name) }}" 
                                           class="inline-form" 
-                                          onsubmit="return confirm('Are you sure you want to delete this variable?');">
+                                          onsubmit="return confirm('Are you sure you want to delete this product?');">
                                         <button type="submit" class="btn btn-danger btn-sm">Delete</button>
                                     </form>
                                 </div>
@@ -136,10 +124,10 @@
                     </tbody>
                 </table>
             </div>            {% else %}
-            <p>No variables added yet.</p>
+            <p>No products added yet.</p>
             {% endif %}
             <div class="table-actions">
-                <button type="button" class="btn btn-primary" onclick="openModal()">Add Variable</button>
+                <button type="button" class="btn btn-primary" onclick="openModal()">Add Product</button>
             </div>
         </section>
 
@@ -199,8 +187,8 @@
             window.openModal = function() {
                 if (modal) {
                     isEditing = false;
-                    modalTitle.textContent = 'Add Variable';
-                    submitBtn.textContent = 'Add Variable';
+                    modalTitle.textContent = 'Add Product';
+                    submitBtn.textContent = 'Add Product';
                     form.reset();
                     modal.style.display = 'block';
                     document.body.style.overflow = 'hidden';
@@ -211,8 +199,8 @@
                 if (modal) {
                     isEditing = true;
                     editingName = variable.name;
-                    modalTitle.textContent = 'Edit Variable';
-                    submitBtn.textContent = 'Update Variable';
+                    modalTitle.textContent = 'Edit Product';
+                    submitBtn.textContent = 'Update Product';
                     
                     // Fill form with variable data
                     form.name.value = variable.name;
