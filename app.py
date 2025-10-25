@@ -281,5 +281,67 @@ def run_app(port: int = 5000, debug: bool = True):
     
     app.run(debug=debug, use_reloader=False, port=port)
 
+# --- Serve OpenAPI spec and Swagger UI ---
+from flask import send_from_directory, Response
+import pathlib
+
+@app.route("/openapi.yaml")
+def openapi_spec():
+        # Serve the OpenAPI YAML file
+        return send_from_directory(pathlib.Path(__file__).parent, "openapi.yaml", mimetype="text/yaml")
+
+@app.route("/api/docs")
+def swagger_ui():
+        # Serve Swagger UI using CDN, pointing to /openapi.yaml
+        html = '''
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <title>API Docs</title>
+            <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist/swagger-ui.css" />
+        </head>
+        <body>
+            <div id="swagger-ui"></div>
+            <script src="https://unpkg.com/swagger-ui-dist/swagger-ui-bundle.js"></script>
+            <script>
+                window.onload = function() {
+                    SwaggerUIBundle({
+                        url: '/openapi.yaml',
+                        dom_id: '#swagger-ui',
+                    });
+                };
+            </script>
+        </body>
+        </html>
+        '''
+        return Response(html, mimetype="text/html")
+
+# --- API endpoint for optimization ---
+from flask import jsonify
+
+@app.route("/api/optimize", methods=["POST"])
+def api_optimize():
+    try:
+        data = request.get_json()
+        variables = data.get("variables")
+        budget = data.get("budget")
+        if not isinstance(variables, list) or budget is None:
+            return jsonify({"error": "Invalid input"}), 400
+
+        var_objs = []
+        for v in variables:
+            var = IntegerVariable.from_dict(v)
+            var.validate()
+            var_objs.append(var)
+
+        max_profit, result = optimize(var_objs, budget)
+        return jsonify({
+            "max_profit": max_profit,
+            "result": result
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == "__main__":
     run_app()
