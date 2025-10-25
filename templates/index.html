@@ -42,16 +42,27 @@
                             <input type="number" class="form-control" id="upperBound" name="upperBound">
                         </div>
                         <div>
-                            <label for="profit">Unit Margin:</label>
-                            <input type="number" class="form-control" id="profit" name="profit" step="0.01" required>
+                            <label for="multiplier">Unit Cost:</label>
+                            <input type="number" class="form-control" id="multiplier" name="multiplier" value="1" step="0.01" required>
+                        </div>
+                        <div>
+                            <label>Input Mode:</label>
+                            <select id="input_mode" class="form-control">
+                                <option value="selling_price">Enter Unit Selling Price</option>
+                                <option value="profit_per_dollar">Enter Profit per Dollar</option>
+                            </select>
+                        </div>
+                        <div id="unit_selling_price_group">
+                            <label for="unit_selling_price">Unit Selling Price:</label>
+                            <input type="number" class="form-control" id="unit_selling_price" name="unit_selling_price" value="" step="0.01">
+                        </div>
+                        <div id="profit_per_dollar_group" style="display:none;">
+                            <label for="profit_per_dollar">Profit per Rand:</label>
+                            <input type="number" class="form-control" id="profit_per_dollar" name="profit_per_dollar" value="" step="0.0001">
                         </div>
                         <div class="checkbox-group">
                             <label for="integer">Whole Units Only?</label>
                             <input type="checkbox" id="integer" name="integer" checked>
-                        </div>
-                        <div>
-                            <label for="multiplier">Unit Cost:</label> <!-- this value represents the cost to acquire or produce one unit -->
-                            <input type="number" class="form-control" id="multiplier" name="multiplier" value="1" required>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -92,9 +103,11 @@
                             <th>Product Name</th>
                             <th>Min Stock</th>
                             <th>Max Stock</th>
-                            <th>Unit Margin</th>
-                            <th>Whole Units Only?</th>
                             <th>Unit Cost</th>
+                            <th>Unit Selling Price</th>
+                            <th>Raw Profit</th>
+                            <th>Profit per Rand</th>
+                            <th>Whole Units Only?</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -102,14 +115,26 @@
                         {% for var in variables %}
                         <tr>
                             <td>{{ var.name }}</td>
-                            <td>{{ var.lowerBound }}</td>
-                            <td>{{ var.upperBound if var.upperBound != None else "∞" }}</td>
-                            <td>£{{ "%.2f"|format(var.profit) }}</td>
+                            <td>{{ "{:.2f}".format(var.lowerBound) }}</td>
+                            <td>{% if var.upperBound != None %}{{ "{:.2f}".format(var.upperBound) }}{% else %}∞{% endif %}</td>
+                            <td>{{ "{:.2f}".format(var.multiplier) }}</td>
+                            <td>{% if var.unit_selling_price is defined %}{{ "{:.2f}".format(var.unit_selling_price) }}{% endif %}</td>
+                            <td>
+                                {% set cost = var.unit_cost if var.unit_cost is defined else var.multiplier %}
+                                {% if var.unit_selling_price is defined and cost is not none %}
+                                    {{ "{:.2f}".format(var.unit_selling_price - cost) }}
+                                {% elif var.profit is defined and cost is not none %}
+                                    {{ "{:.2f}".format(var.profit * cost) }}
+                                {% else %}
+                                    N/A
+                                {% endif %}
+                            </td>
+                            <td>{{ "{:.4f}".format(var.profit) }}</td>
                             <td>{{ "Yes" if var.integer else "No" }}</td>
-                            <td>{{ var.multiplier }}</td>                            <td class="table-actions-cell">
+                            <td class="table-actions-cell">
                                 <div class="button-group">
                                     <button type="button" class="btn btn-primary btn-sm"
-                                            onclick='editVariable("{{ var | tojson | safe }}")'>
+                                            onclick='editVariable({{ var | tojson | safe }})'>
                                         Edit
                                     </button>
                                     <form method="POST" action="{{ url_for('delete_variable', name=var.name) }}" 
@@ -128,6 +153,9 @@
             {% endif %}
             <div class="table-actions">
                 <button type="button" class="btn btn-primary" onclick="openModal()">Add Product</button>
+                <form id="clear-table-form" class="inline-form" style="display:inline;">
+                    <button type="button" class="btn btn-danger" id="clear-table-btn">Clear Table</button>
+                </form>
             </div>
         </section>
 
@@ -154,14 +182,55 @@
             {% if max_profit %}
             <div class="results">
                 <h3>Results</h3>
-                <p class="profit"><strong>Maximum Profit:</strong> £{{ "%.2f"|format(max_profit) }}</p>
-
-                <h4>Optimal Values:</h4>
-                <ul class="result-list">
-                    {% for name, value in result.items() %}
-                    <li><strong>{{ name }}:</strong> {{ value }}</li>
-                    {% endfor %}
-                </ul>
+                <div class="card-deck" style="display: flex; gap: 1rem; margin-bottom: 1.5rem;">
+                    <div class="card result-card" style="flex: 1; background: #f8f9fa; padding: 1rem; border-radius: 8px; box-shadow: 0 2px 8px #0001;">
+                        <h5>Maximum Revenue</h5>
+                        <p class="card-value" style="font-size: 1.3em; font-weight: bold; color: #2c7;">R{{ "%.2f"|format(total_revenue) }}</p>
+                    </div>
+                    <div class="card result-card" style="flex: 1; background: #f8f9fa; padding: 1rem; border-radius: 8px; box-shadow: 0 2px 8px #0001;">
+                        <h5>Maximum Profit</h5>
+                        <p class="card-value" style="font-size: 1.3em; font-weight: bold; color: #27c;">R{{ "%.2f"|format(max_profit_value) }}</p>
+                    </div>
+                    <div class="card result-card" style="flex: 1; background: #f8f9fa; padding: 1rem; border-radius: 8px; box-shadow: 0 2px 8px #0001;">
+                        <h5>Total Unit Cost</h5>
+                        <p class="card-value" style="font-size: 1.3em; font-weight: bold; color: #c72;">R{{ "%.2f"|format(total_unit_cost) }}</p>
+                    </div>
+                </div>
+                <h4>Optimal Product Breakdown</h4>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-striped">
+                        <thead>
+                            <tr>
+                                <th>Product</th>
+                                <th>Units Acquired</th>
+                                <th>Cost per Unit (R)</th>
+                                <th>Total Spent (R)</th>
+                                <th>Profit per Unit (R)</th>
+                                <th>Total Profit (R)</th>
+                                <th>Revenue (R)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        {% for name, value in result.items() %}
+                            {% set var = (variables | selectattr('name', 'equalto', name) | list)[0] %}
+                            {% set units = product_units[name] %}
+                            {% set cost_per_unit = var.unit_cost if var.unit_cost is defined else var.multiplier %}
+                            {% set profit_per_unit = var.profit * cost_per_unit %}
+                            {% set total_profit = profit_per_unit * units %}
+                            {% set revenue = units * (var.unit_selling_price if var.unit_selling_price is defined else 0) %}
+                            <tr>
+                                <td>{{ name }}</td>
+                                <td>{{ units }}</td>
+                                <td>R{{ "{:.2f}".format(cost_per_unit) }}</td>
+                                <td>R{{ "{:.2f}".format(value) }}</td>
+                                <td>R{{ "{:.2f}".format(profit_per_unit) }}</td>
+                                <td>R{{ "{:.2f}".format(total_profit) }}</td>
+                                <td>R{{ "{:.2f}".format(revenue) }}</td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
             {% endif %}        </section>
     </div>    <script>
@@ -201,15 +270,26 @@
                     editingName = variable.name;
                     modalTitle.textContent = 'Edit Product';
                     submitBtn.textContent = 'Update Product';
-                    
+
                     // Fill form with variable data
                     form.name.value = variable.name;
                     form.lowerBound.value = variable.lowerBound;
                     form.upperBound.value = variable.upperBound;
-                    form.profit.value = variable.profit;
+                    form.multiplier.value = variable.unit_cost !== undefined ? variable.unit_cost : variable.multiplier;
+                    // Prefer to show selling price if available, else profit per dollar
+                    if (variable.unit_selling_price !== undefined && variable.unit_selling_price !== 0) {
+                        document.getElementById('input_mode').value = 'selling_price';
+                        document.getElementById('unit_selling_price').value = variable.unit_selling_price;
+                        document.getElementById('profit_per_dollar').value = variable.profit !== undefined ? variable.profit : '';
+                    } else {
+                        document.getElementById('input_mode').value = 'profit_per_dollar';
+                        document.getElementById('profit_per_dollar').value = variable.profit !== undefined ? variable.profit : '';
+                        document.getElementById('unit_selling_price').value = '';
+                    }
                     form.integer.checked = variable.integer;
-                    form.multiplier.value = variable.multiplier;
-                    
+                    // Show/hide fields
+                    document.getElementById('input_mode').dispatchEvent(new Event('change'));
+                    updateProfitAndSellingPrice();
                     modal.style.display = 'block';
                     document.body.style.overflow = 'hidden';
                 }
@@ -270,6 +350,79 @@
                     closeModal();
                 }
             });
+        });
+        
+        // Live calculation for Profit per Dollar and Selling Price
+        function updateProfitAndSellingPrice() {
+            const cost = parseFloat(document.getElementById('multiplier').value) || 0;
+            const inputMode = document.getElementById('input_mode').value;
+            if (inputMode === 'selling_price') {
+                const price = parseFloat(document.getElementById('unit_selling_price').value) || 0;
+                let profitPerDollar = '';
+                if (cost > 0) {
+                    profitPerDollar = ((price - cost) / cost).toFixed(4);
+                }
+                document.getElementById('profit_per_dollar').value = profitPerDollar;
+            } else {
+                const profitPerDollar = parseFloat(document.getElementById('profit_per_dollar').value) || 0;
+                let price = '';
+                if (cost > 0) {
+                    price = (cost * (1 + profitPerDollar)).toFixed(2);
+                }
+                document.getElementById('unit_selling_price').value = price;
+            }
+        }
+        document.getElementById('multiplier').addEventListener('input', updateProfitAndSellingPrice);
+        document.getElementById('unit_selling_price').addEventListener('input', updateProfitAndSellingPrice);
+        document.getElementById('profit_per_dollar').addEventListener('input', updateProfitAndSellingPrice);
+        document.getElementById('input_mode').addEventListener('change', function() {
+            if (this.value === 'selling_price') {
+                document.getElementById('unit_selling_price_group').style.display = '';
+                document.getElementById('profit_per_dollar_group').style.display = 'none';
+            } else {
+                document.getElementById('unit_selling_price_group').style.display = 'none';
+                document.getElementById('profit_per_dollar_group').style.display = '';
+            }
+            updateProfitAndSellingPrice();
+        });
+        // On edit, set input mode and fill both fields if possible
+        window.editVariable = function(variable) {
+            if (modal) {
+                isEditing = true;
+                editingName = variable.name;
+                modalTitle.textContent = 'Edit Product';
+                submitBtn.textContent = 'Update Product';
+                form.name.value = variable.name;
+                form.lowerBound.value = variable.lowerBound;
+                form.upperBound.value = variable.upperBound;
+                form.multiplier.value = variable.unit_cost !== undefined ? variable.unit_cost : variable.multiplier;
+                // Prefer to show selling price if available, else profit per dollar
+                if (variable.unit_selling_price !== undefined && variable.unit_selling_price !== 0) {
+                    document.getElementById('input_mode').value = 'selling_price';
+                    document.getElementById('unit_selling_price').value = variable.unit_selling_price;
+                    document.getElementById('profit_per_dollar').value = variable.profit !== undefined ? variable.profit : '';
+                } else {
+                    document.getElementById('input_mode').value = 'profit_per_dollar';
+                    document.getElementById('profit_per_dollar').value = variable.profit !== undefined ? variable.profit : '';
+                    document.getElementById('unit_selling_price').value = '';
+                }
+                form.integer.checked = variable.integer;
+                // Show/hide fields
+                document.getElementById('input_mode').dispatchEvent(new Event('change'));
+                updateProfitAndSellingPrice();
+                modal.style.display = 'block';
+                document.body.style.overflow = 'hidden';
+            }
+        }
+        // On add, default to selling price mode
+        document.getElementById('input_mode').value = 'selling_price';
+        document.getElementById('input_mode').dispatchEvent(new Event('change'));
+
+        document.getElementById('clear-table-btn').addEventListener('click', function() {
+            if (confirm('Are you sure you want to clear all products?')) {
+                fetch('/clear_table', {method: 'POST'})
+                    .then(() => window.location.reload());
+            }
         });
     </script>
 </body>

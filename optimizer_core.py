@@ -34,18 +34,34 @@ class IntegerVariable:
     name: str
     lowerBound: int = 0  # Min stock/order
     upperBound: Optional[int] = None  # Max stock/order
-    profit: float = 0.0  # Unit margin
+    profit: float = 0.0  # Profit per dollar
     integer: bool = True  # Whole units only?
-    multiplier: int = 1  # Units per package
+    multiplier: int = 1  # Unit cost
+    unit_cost: float = 1.0  # Store unit cost for editing
+    unit_selling_price: float = 0.0  # Store unit selling price for editing
 
     def to_dict(self) -> Dict:
         """Convert to a dictionary for JSON export (product-centric)."""
-        return asdict(self)
+        d = asdict(self)
+        # For backward compatibility, always include multiplier as unit_cost
+        d['unit_cost'] = self.multiplier
+        d['unit_selling_price'] = self.unit_selling_price
+        return d
 
     @classmethod
     def from_dict(cls, data: Dict) -> 'IntegerVariable':
         """Create a product (IntegerVariable) from a dictionary."""
-        return cls(**data)
+        # Support both legacy and new keys
+        return cls(
+            name=data['name'],
+            lowerBound=data.get('lowerBound', 0),
+            upperBound=data.get('upperBound'),
+            profit=data.get('profit', 0.0),
+            integer=data.get('integer', True),
+            multiplier=data.get('unit_cost', data.get('multiplier', 1)),
+            unit_cost=data.get('unit_cost', data.get('multiplier', 1)),
+            unit_selling_price=data.get('unit_selling_price', 0.0)
+        )
 
     def validate(self) -> None:
         """
@@ -63,7 +79,7 @@ class IntegerVariable:
 variables_list: List[IntegerVariable] = []
 
 def create_integer_variable(name: str, lowerBound: int, upperBound: Optional[int],
-                          profit: float, integer: bool = True, multiplier: int = 1) -> None:
+                          profit: float, integer: bool = True, multiplier: int = 1, unit_cost: Optional[float] = None, unit_selling_price: Optional[float] = None) -> None:
     """
     Create and validate a product (IntegerVariable), then add it to the global list.
     
@@ -78,8 +94,21 @@ def create_integer_variable(name: str, lowerBound: int, upperBound: Optional[int
     Raises:
         OptimizationError: If validation fails.
     """
-    var = IntegerVariable(name=name, lowerBound=lowerBound, upperBound=upperBound,
-                         profit=profit, integer=integer, multiplier=multiplier)
+    # Use provided unit_cost if given, else fallback to multiplier
+    if unit_cost is None:
+        unit_cost = multiplier
+    if unit_selling_price is None:
+        unit_selling_price = 0.0
+    var = IntegerVariable(
+        name=name,
+        lowerBound=lowerBound,
+        upperBound=upperBound,
+        profit=profit,
+        integer=integer,
+        multiplier=multiplier,
+        unit_cost=unit_cost,
+        unit_selling_price=unit_selling_price
+    )
     var.validate()
     variables_list.append(var)
 

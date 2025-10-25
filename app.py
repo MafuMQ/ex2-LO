@@ -56,6 +56,11 @@ def handle_file_operation(operation: str, filepath: str, variables: Optional[lis
                 data = json.load(f)
                 clear_variables()
                 for item in data:
+                    # Calculate missing fields if needed
+                    if 'unit_selling_price' not in item and 'profit' in item and 'multiplier' in item:
+                        item['unit_selling_price'] = item['multiplier'] * (1 + item['profit'])
+                    if 'profit' not in item and 'unit_selling_price' in item and 'multiplier' in item:
+                        item['profit'] = (item['unit_selling_price'] - item['multiplier']) / item['multiplier']
                     var = IntegerVariable.from_dict(item)
                     var.validate()
                     variables_list.append(var)
@@ -65,13 +70,25 @@ def handle_file_operation(operation: str, filepath: str, variables: Optional[lis
 def parse_variable_form() -> Tuple[Dict[str, Any], bool]:
     """Parse and validate variable form data."""
     try:
+        unit_cost = float(request.form['multiplier'])
+        input_mode = request.form.get('input_mode', 'selling_price')
+        if unit_cost <= 0:
+            raise ValueError("Unit cost must be positive.")
+        if input_mode == 'profit_per_dollar':
+            profit_per_dollar = float(request.form['profit_per_dollar'])
+            unit_selling_price = unit_cost * (1 + profit_per_dollar)
+        else:
+            unit_selling_price = float(request.form['unit_selling_price'])
+            profit_per_dollar = (unit_selling_price - unit_cost) / unit_cost
         data = {
             'name': request.form['name'],
             'lowerBound': int(request.form['lowerBound']) if request.form['lowerBound'] else 0,
             'upperBound': int(request.form['upperBound']) if request.form['upperBound'] else None,
-            'profit': float(request.form['profit']),
+            'profit': profit_per_dollar,
             'integer': bool(request.form.get('integer')),
-            'multiplier': int(request.form['multiplier'])
+            'multiplier': unit_cost,
+            'unit_cost': unit_cost,
+            'unit_selling_price': unit_selling_price
         }
         return data, True
     except ValueError as e:
@@ -112,7 +129,25 @@ def index():
             else:
                 try:
                     max_profit, result = optimize(variables_list, budget)
-                    flash("Optimization completed successfully!", "success")
+                    # Calculate total unit cost and per-product units
+                    product_units = {}
+                    product_costs = {}
+                    total_unit_cost = 0
+                    total_revenue = 0
+                    for var in variables_list:
+                        units = 0
+                        if var.multiplier > 0:
+                            units = int(result[var.name] / var.multiplier)
+                        product_units[var.name] = units
+                        product_costs[var.name] = result[var.name]
+                        total_unit_cost += result[var.name]
+                        # Revenue for this product: units * selling price
+                        if hasattr(var, 'unit_selling_price'):
+                            total_revenue += units * var.unit_selling_price
+                        else:
+                            total_revenue += result[var.name]
+                    max_profit_value = total_revenue - total_unit_cost
+                
                 except OptimizationError as e:
                     flash(f"Optimization failed: {str(e)}", "error")
 
@@ -120,7 +155,12 @@ def index():
                          variables=variables_list,
                          max_profit=max_profit,
                          result=result,
-                         budget=budget)
+                         budget=budget,
+                         product_units=locals().get('product_units', {}),
+                         product_costs=locals().get('product_costs', {}),
+                         total_unit_cost=locals().get('total_unit_cost', 0),
+                         total_revenue=locals().get('total_revenue', 0),
+                         max_profit_value=locals().get('max_profit_value', 0))
 
 @app.route("/export", methods=["POST"])
 def export_variables():
@@ -172,20 +212,17 @@ def download_variables():
 @app.route("/delete_variable/<name>", methods=["POST"])
 def delete_variable(name):
     """Delete a variable by its name."""
-    global variables_list
     try:
-        # Find and remove the product with the given name
-        variables_list = [var for var in variables_list if var.name != name]
+        # Remove in-place to preserve shared state
+        variables_list[:] = [var for var in variables_list if var.name != name]
         flash(f"Product '{name}' deleted successfully!", "success")
     except Exception as e:
         flash(f"Error deleting product: {str(e)}", "error")
-    
     return redirect(url_for("index"))
 
 @app.route("/update_variable", methods=["POST"])
 def update_variable():
     """Update an existing variable."""
-    global variables_list
     try:
         old_name = request.form.get('old_name')
         if not old_name:
@@ -205,9 +242,8 @@ def update_variable():
             # Create new product instance to validate before removing old one
             new_var = IntegerVariable(**data)
             new_var.validate()
-            
-            # Remove the old product first
-            variables_list = [var for var in variables_list if var.name != old_name]
+            # Remove the old product in-place
+            variables_list[:] = [var for var in variables_list if var.name != old_name]
             # Add the new product
             variables_list.append(new_var)
             flash("Product updated successfully!", "success")
@@ -220,6 +256,18 @@ def update_variable():
     except Exception as e:
         flash(f"Error updating product: {str(e)}", "error")
         return {'status': 'error', 'message': str(e)}, 500
+
+@app.route("/clear_table", methods=["POST"])
+def clear_table():
+    """Delete all variables (clear the table)."""
+    global variables_list
+    try:
+        clear_variables()
+        flash("All products have been deleted.", "success")
+    except Exception as e:
+        flash(f"Error deleting products: {str(e)}", "error")
+    
+    return redirect(url_for("index"))
 
 def run_app(port: int = 5000, debug: bool = True):
     """Run the Flask application with browser auto-open."""
