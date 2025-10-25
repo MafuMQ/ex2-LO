@@ -203,9 +203,9 @@
                             <tr>
                                 <th>Product</th>
                                 <th>Units Acquired</th>
-                                <th>Cost per Unit (R)</th>
+                                <th style="color: #888; font-weight: 500; background: #f3f3f3;">Cost per Unit (R) <span title="Constant for each product" style="font-size:1em;vertical-align:middle;">&#128274;</span></th>
                                 <th>Total Spent (R)</th>
-                                <th>Profit per Unit (R)</th>
+                                <th style="color: #888; font-weight: 500; background: #f3f3f3;">Profit per Unit (R) <span title="Constant for each product" style="font-size:1em;vertical-align:middle;">&#128274;</span></th>
                                 <th>Total Profit (R)</th>
                                 <th>Revenue (R)</th>
                             </tr>
@@ -221,9 +221,9 @@
                             <tr>
                                 <td>{{ name }}</td>
                                 <td>{{ units }}</td>
-                                <td>R{{ "{:.2f}".format(cost_per_unit) }}</td>
+                                <td style="color: #888; background: #f9f9f9;">R{{ "{:.2f}".format(cost_per_unit) }}</td>
                                 <td>R{{ "{:.2f}".format(value) }}</td>
-                                <td>R{{ "{:.2f}".format(profit_per_unit) }}</td>
+                                <td style="color: #888; background: #f9f9f9;">R{{ "{:.2f}".format(profit_per_unit) }}</td>
                                 <td>R{{ "{:.2f}".format(total_profit) }}</td>
                                 <td>R{{ "{:.2f}".format(revenue) }}</td>
                             </tr>
