@@ -2,13 +2,14 @@
 
 ## Base URL
 
-    http://..
+  https://ex2-lo.vercel.app
 
 ---
 
 ## POST /api/optimize
 
 Optimize a set of variables with a budget constraint.
+
 
 ### Request
 - **Content-Type:** application/json
@@ -21,9 +22,16 @@ Optimize a set of variables with a budget constraint.
       "name": "string",
       "lowerBound": integer,
       "upperBound": integer | null,
-      "profit": float,
       "integer": boolean,
-      "multiplier": float
+      "multiplier": float,
+      // One of the following must be provided:
+      // - profit (float)
+      // - unit_selling_price (float)
+      // - profit_per_dollar (float)
+      // If profit is omitted, it will be calculated from unit_selling_price or profit_per_dollar.
+      "profit": float,                // optional if unit_selling_price or profit_per_dollar is given
+      "unit_selling_price": float,    // optional
+      "profit_per_dollar": float      // optional
     },
     ...
   ],
@@ -31,19 +39,52 @@ Optimize a set of variables with a budget constraint.
 }
 ```
 
-#### Example
+#### Example 1: Direct profit
 ```
 {
   "variables": [
     {
-      "name": "coffee cake",
+      "name": "classic cake",
       "lowerBound": 0,
-      "upperBound": null,
-      "profit": 1.80,
+      "upperBound": 10,
       "integer": true,
-      "multiplier": 8
+      "multiplier": 3,
+      "profit": 2.0
     }
-    // ... more variables ...
+  ],
+  "budget": 100
+}
+```
+
+#### Example 2: Using unit_selling_price
+```
+{
+  "variables": [
+    {
+      "name": "test cake",
+      "lowerBound": 0,
+      "upperBound": 10,
+      "integer": true,
+      "multiplier": 5,
+      "unit_selling_price": 8
+    }
+  ],
+  "budget": 100
+}
+```
+
+#### Example 3: Using profit_per_dollar
+```
+{
+  "variables": [
+    {
+      "name": "bonus cake",
+      "lowerBound": 0,
+      "upperBound": 10,
+      "integer": true,
+      "multiplier": 4,
+      "profit_per_dollar": 0.5
+    }
   ],
   "budget": 100
 }

@@ -329,8 +329,21 @@ def api_optimize():
         if not isinstance(variables, list) or budget is None:
             return jsonify({"error": "Invalid input"}), 400
 
+
         var_objs = []
         for v in variables:
+            v = dict(v)  # ensure mutable
+            # Compute profit if missing
+            if 'profit' not in v or v['profit'] is None:
+                multiplier = v.get('multiplier', v.get('unit_cost', 1))
+                # If profit_per_dollar is provided
+                if 'profit_per_dollar' in v:
+                    v['profit'] = float(v['profit_per_dollar'])
+                # If unit_selling_price is provided
+                elif 'unit_selling_price' in v and multiplier:
+                    v['profit'] = (float(v['unit_selling_price']) - float(multiplier)) / float(multiplier)
+                else:
+                    v['profit'] = 0.0
             var = IntegerVariable.from_dict(v)
             var.validate()
             var_objs.append(var)

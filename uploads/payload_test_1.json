@@ -1,0 +1,29 @@
+{
+  "variables": [
+    {
+      "name": "test cake",
+      "lowerBound": 0,
+      "upperBound": 10,
+      "integer": true,
+      "multiplier": 5,
+      "unit_selling_price": 8
+    },
+    {
+      "name": "bonus cake",
+      "lowerBound": 0,
+      "upperBound": 10,
+      "integer": true,
+      "multiplier": 4,
+      "profit_per_dollar": 0.5
+    },
+    {
+      "name": "classic cake",
+      "lowerBound": 0,
+      "upperBound": 10,
+      "integer": true,
+      "multiplier": 3,
+      "profit": 2.0
+    }
+  ],
+  "budget": 100
+}
